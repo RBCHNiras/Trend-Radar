@@ -1,0 +1,446 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>INWEs trend radar</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  #circle {
+    position: relative;
+    width: 1000px;
+    height: 1000px;
+    border: 2px solid #000;
+    border-radius: 50%;
+    margin: 50px auto;
+  }
+
+  .point {
+    fill: red;
+    cursor: pointer;
+  }
+
+  .point-label {
+    font-size: 12px;
+    fill: #333;
+    white-space: nowrap;
+  }
+
+  #tooltip {
+  position: absolute;
+  background-color: #fff;
+  border: 2px solid #d00;
+  padding: 15px;
+  width: 220px;
+  font-family: sans-serif;
+  font-size: 13px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  z-index: 10;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.6s ease, visibility 0s linear 0.6s;
+}
+
+#tooltip.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 1s ease;
+}
+
+
+.title {
+  position: relative;
+  width: 100%;
+  text-align: center;
+  font-size: 30px;
+  font-weight: 800;
+  margin: 30px 0 0px 0;
+  color: #222;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+
+  #overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  backdrop-filter: blur(5px);
+  background-color: rgba(255, 255, 255, 0.3);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+  z-index: 5;
+}
+
+#overlay.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+</style>
+
+</head>
+<body>
+  <div class="title">INWEs trend radar</div>
+  <div id="circle"></div>
+  <div id="overlay"></div>
+  <div id="tooltip"></div>
+
+  <script>
+    const data = [
+      { label: "Mini Metroen", originalYears: 10, impact: "Høj", description: "" },
+      { label: "Opbygning af Gaza", originalYears: 5, impact: "Lav", description: "" },
+      { label: "Opbygning af Ukraine", originalYears: 5, impact: "Lav", description: "" },
+      { label: "Transport på 24 abonnement", originalYears: 5, impact: "Lav", description: "" },
+      { label: "Atomkraft", originalYears: 10, impact: "Lav", description: "" },
+      { label: "Mindre trængsel", originalYears: 5, impact: "Mellem/lav", description: "" },
+      { label: "Tilsyn med droner", originalYears: 2, impact: "Mellem/lav", description: "" },
+      { label: "Bæredygtighed", originalYears: 1, impact: "Mellem/høj", description: "" },
+      { label: "Jordhåndtering", originalYears: 1, impact: "Mellem", description: "" },
+      { label: "Outsourcing", originalYears: 1, impact: "Mellem", description: "" },
+      { label: "Mere trængsel", originalYears: 1, impact: "Mellem/høj", description: "" },
+      { label: "Byudvikling", originalYears: 5, impact: "Høj", description: "" },
+      { label: "Censor, loT data", originalYears: 2, impact: "Høj", description: "" },
+      { label: "Havne investorer", originalYears: 2, impact: "Mellem", description: "" },
+      { label: "Støj fra droner", originalYears: 5, impact: "Høj", description: "" },
+      { label: "Forsvaret", originalYears: 1, impact: "Høj", description: "" },
+      { label: "Tyskland", originalYears: 2, impact: "Mellem/høj", description: "" },
+      { label: "Norge", originalYears: 1, impact: "Mellem/lav", description: "" },
+      { label: "Klimaforandring", originalYears: 1, impact: "Høj", description: "" },
+      { label: "Paremetrisk/computationel design", originalYears: 1, impact: "Høj", description: "" },
+      { label: "Kampen om pladsen", originalYears: 1, impact: "Mellem/høj", description: "Flere funktioner for den samme kvadratmeter" },
+      { label: "Højt grundvand påvirker levetiden på infrastruktur", originalYears: 5, impact: "Mellem/høj", description: "" },
+      { label: "Lufthavne", originalYears: 1, impact: "Mellem", description: "" },
+      { label: "Grøn omstilling PTX", originalYears: 1, impact: "Mellem", description: "" },
+      { label: "Robotter", originalYears: 10, impact: "Mellem/høj", description: "" },
+      { label: "Bygherrerådgivning fremfor projektering", originalYears: 1, impact: "Mellem", description: "" },
+      { label: "Ressourcemangel, kompetancemangel ved kunder", originalYears: 3, impact: "Mellem/lav", description: "" },
+      { label: "Bæredygtighed medarbejderfokus", originalYears: 1, impact: "Mellem", description: "" },
+      { label: "Alternative transportformer", originalYears: 5, impact: "Lav", description: "" },
+      { label: "Kulturen", originalYears: 5, impact: "Mellem", description: "" },
+      { label: "VD", originalYears: 1, impact: "Mellem/høj", description: "" },
+      { label: "Forretningsmodel, timeafregning", originalYears: 1, impact: "Mellem/høj", description: "-Lave priser. -Value for money" },
+      { label: "AI", originalYears: 1, impact: "Høj", description: "" },
+      { label: "Siloer i egen organisation", originalYears: 10, impact: "Mellem", description: "" },
+      { label: "Supertanker vs speedbåd", originalYears: 2, impact: "Mellem/høj", description: "" },
+      { label: "Udbudssystem", originalYears: 5, impact: "Lav", description: "" },
+      { label: "Selvkørende biler", originalYears: 5, impact: "Lav", description: "" },
+      { label: "Partnerskaber", originalYears: 2, impact: "Mellem/høj", description: "Vertikal, arkitekt, ingeniør, entreprenør" },
+      { label: "Bureakrati og myndigheder", originalYears: 1, impact: "Høj", description: "" },
+      { label: "AAU stopper vejingeniør uddannelse", originalYears: 5, impact: "Mellem", description: "Problem for Aalborg?" },
+      { label: "Godt arbejdsmiljø", originalYears: 1, impact: "Høj", description: "" },
+      { label: "Forretningsmodel, fondsstøttede projekter", originalYears: 1, impact: "Mellem", description: "" },
+      { label: "Geopolitisk ustabilitet", originalYears: 1, impact: "Mellem/høj", description: "" },
+      { label: "Quantum competion", originalYears: 3, impact: "Høj", description: "" },
+      { label: "Arbejdstid", originalYears: 5, impact: "Lav", description: "" },
+      { label: "Bedre online mødeteknologi", originalYears: 3, impact: "Mellem/lav", description: "" },
+      { label: "Forretningsmodel investor", originalYears: 5, impact: "Mellem", description: "" },
+      { label: "Materialeknaphed", originalYears: 3, impact: "Mellem", description: "" },
+      { label: "Flyvende biler", originalYears: 5, impact: "Mellem", description: "" }
+    ];
+
+    function placePoints() {
+      const circle = document.getElementById('circle');
+      const centerX = 500;
+      const centerY = 500;
+      const circleRadius = 480;
+
+      const impactMap = {
+        'Høj': -1.0,
+        'Mellem/høj': -0.5,
+        'Mellem': 0.0,
+        'Mellem/lav': 0.5,
+        'Lav': 1.0
+      };
+
+      const minYears = 1;
+      const maxYears = 10;
+
+      const nodes = data.map((item) => {
+        const impactValue = impactMap[item.impact];
+        const clampedYears = Math.min(Math.max(item.originalYears, minYears), maxYears);
+        const timeNorm = ((clampedYears - minYears) / (maxYears - minYears)) * 2 - 1;
+
+        let x = timeNorm;
+        let y = impactValue;
+
+        const dist = Math.sqrt(x * x + y * y);
+        if (dist > 1) {
+          x /= dist;
+          y /= dist;
+        }
+
+        const px = centerX + x * circleRadius;
+        const py = centerY + y * circleRadius;
+
+        return {
+          ...item,
+          x: px,
+          y: py,
+          targetX: px,
+          targetY: py
+        };
+      });
+
+const radarSvg = d3.select("#circle").append("svg")
+  .attr("width", 1000)
+  .attr("height", 1000)
+  .style("position", "absolute")
+  .style("top", 0)
+  .style("left", 0);
+
+// Add gradient after SVG is created
+radarSvg.append("defs").append("radialGradient")
+  .attr("id", "radarGlowGradient")
+  .attr("cx", "50%")
+  .attr("cy", "50%")
+  .attr("r", "100%")
+  .selectAll("stop")
+  .data([
+    { offset: "0%", color: "rgba(0,255,0,0.15)" },
+    { offset: "100%", color: "rgba(0,255,0,0)" }
+  ])
+  .enter()
+  .append("stop")
+  .attr("offset", d => d.offset)
+  .attr("stop-color", d => d.color);
+
+
+      const pointNodes = radarSvg.selectAll(".point")
+        .data(nodes)
+        .enter()
+        .append("circle")
+        .attr("class", "point")
+        .attr("r", 5)
+        .attr("cx", d => d.x)
+        .attr("cy", d => d.y);
+
+      const labelNodes = radarSvg.selectAll(".point-label")
+        .data(nodes)
+        .enter()
+        .append("text")
+        .attr("class", "point-label")
+        .attr("text-anchor", d => d.x > 500 ? "end" : "start")
+        .attr("x", d => d.x + (d.x > 500 ? -10 : 10))
+        .attr("y", d => d.y)
+        .each(function(d) {
+          const words = d.label.split(" ");
+          const mid = Math.ceil(words.length / 2);
+          const lines = [words.slice(0, mid).join(" "), words.slice(mid).join(" ")];
+
+          lines.forEach((line, i) => {
+            d3.select(this)
+              .append("tspan")
+              .attr("x", d.x + (d.x > 500 ? -10 : 10))
+              .attr("dy", i === 0 ? 0 : "1.2em")
+              .text(line);
+          });
+        });
+
+      const simulation = d3.forceSimulation(nodes)
+        .force("x", d3.forceX(d => d.targetX).strength(0.05))
+        .force("y", d3.forceY(d => d.targetY).strength(0.05))
+        .force("collide", d3.forceCollide(d => Math.max(25, d.label.length * 3)))
+        .force("charge", d3.forceManyBody().strength(-40))
+        .on("tick", ticked);
+
+      function ticked() {
+        pointNodes
+          .attr("cx", d => d.x)
+          .attr("cy", d => d.y);
+
+        labelNodes
+          .attr("x", d => d.x + (d.x > 500 ? -10 : 10))
+          .attr("y", d => d.y)
+          .attr("text-anchor", d => d.x > 500 ? "end" : "start")
+          .each(function(d) {
+            const words = d.label.split(" ");
+            const mid = Math.ceil(words.length / 2);
+            const lines = [words.slice(0, mid).join(" "), words.slice(mid).join(" ")];
+
+            const text = d3.select(this);
+            text.selectAll("tspan").remove();
+
+            lines.forEach((line, i) => {
+              text.append("tspan")
+                .attr("x", d.x + (d.x > 500 ? -10 : 10))
+                .attr("dy", i === 0 ? 0 : "1.2em")
+                .text(line);
+            });
+          });
+
+        nodes.forEach(d => {
+          const dx = d.x - centerX;
+          const dy = d.y - centerY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > circleRadius - 5) {
+            d.x = centerX + dx / dist * (circleRadius - 5);
+            d.y = centerY + dy / dist * (circleRadius - 5);
+          }
+        });
+      }
+
+      pointNodes.on("click", function(event, d) {
+        const tooltip = document.getElementById('tooltip');
+		document.getElementById('overlay').classList.add('show');
+tooltip.innerHTML = `
+  <div style="position: relative;">
+    <button id="closeTooltip" style="
+      position: absolute;
+      top: -30px;
+      right: -15px;
+      background: transparent;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: #d00;
+    ">&times;</button>
+    <h4>${d.label}</h4>
+    <div class="meta">Impact: ${d.impact}<br>Adoption: ${d.originalYears} år</div>
+    <div class="description">${d.description || ''}</div>
+  </div>
+`;
+
+document.getElementById('closeTooltip').onclick = () => {
+  tooltip.classList.remove('show');
+  document.getElementById('overlay').classList.remove('show');
+};
+
+
+
+const screenWidth = window.innerWidth;
+const screenHeight = window.innerHeight;
+const tooltipWidth = 220; // same as your CSS
+const tooltipHeight = tooltip.offsetHeight || 150; // estimate if not rendered yet
+
+tooltip.style.left = `${(screenWidth - tooltipWidth) / 2}px`;
+tooltip.style.top = `${(screenHeight - tooltipHeight) / 2}px`;
+tooltip.classList.add('show');
+
+      });
+    }
+
+
+function addRadarGlow() {
+  const glowSvg = d3.select("#circle svg");
+  const centerX = 500;
+  const centerY = 500;
+  const radius = 500;
+  const trailLength = 10; // number of fading arcs
+  const arcWidth = 2; // degrees per arc
+
+  const arcs = [];
+
+  for (let i = 0; i < trailLength; i++) {
+    const arc = glowSvg.append("path")
+      .attr("fill", `rgba(0, 255, 0, ${0.15 * (1 - i / trailLength)})`)
+      .lower();
+    arcs.push(arc);
+  }
+
+  let angle = 0;
+
+  d3.timer(() => {
+    angle = (angle + 0.5) % 360;
+
+    arcs.forEach((arc, i) => {
+      const startAngle = (angle - (i + 1) * arcWidth + 360) % 360;
+      const endAngle = (angle - i * arcWidth + 360) % 360;
+
+const arcShape = d3.arc()
+  .innerRadius(0)
+  .outerRadius(radius)
+  .startAngle((startAngle * Math.PI) / 180)
+  .endAngle(((startAngle + arcWidth) * Math.PI) / 180);
+
+
+      arc
+        .attr("d", arcShape())
+        .attr("transform", `translate(${centerX},${centerY})`);
+    });
+  });
+}
+
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  placePoints();
+addRadarGlow();
+
+});
+
+
+    // Add quadrant labels
+    const labelSvg = d3.select("#circle").append("svg")
+      .attr("width", 1000)
+      .attr("height", 1000)
+      .style("position", "absolute")
+      .style("top", 0)
+      .style("left", 0);
+
+    labelSvg.append("defs").append("path")
+      .attr("id", "topLeftArc")
+      .attr("d", "M 0,600 A 500,500 0 0,1 600,0");
+
+    labelSvg.append("defs").append("path")
+      .attr("id", "topRightArc")
+.attr("d", "M 500,-20 A 520,520 0 0,1 1020,500");
+
+
+    labelSvg.append("defs").append("path")
+      .attr("id", "bottomLeftArc")
+.attr("d", "M -30,500 A 530,530 0 0,0 500,1030");
+
+
+    labelSvg.append("defs").append("path")
+      .attr("id", "bottomRightArc")
+.attr("d", "M 500,1030 A 530,530 0 0,0 1030,500");
+
+
+
+
+    labelSvg.append("text")
+      .append("textPath")
+      .attr("href", "#topLeftArc")
+      .attr("startOffset", "50%")
+      .attr("text-anchor", "middle")
+      .style("font-size", "22px")
+      .style("fill", "#555")
+      .text("Short-Term & High Impact");
+
+    labelSvg.append("text")
+      .append("textPath")
+      .attr("href", "#topRightArc")
+      .attr("startOffset", "50%")
+      .attr("text-anchor", "middle")
+      .style("font-size", "22px")
+      .style("fill", "#555")
+      .text("Long-Term & High Impact");
+
+    labelSvg.append("text")
+      .append("textPath")
+      .attr("href", "#bottomLeftArc")
+      .attr("startOffset", "50%")
+      .attr("text-anchor", "middle")
+      .style("font-size", "22px")
+      .style("fill", "#555")
+      .text("Short-Term & Low Impact");
+
+    labelSvg.append("text")
+      .append("textPath")
+      .attr("href", "#bottomRightArc")
+      .attr("startOffset", "50%")
+      .attr("text-anchor", "middle")
+      .style("font-size", "22px")
+      .style("fill", "#555")
+      .text("Long-Term & Low Impact");
+  </script>
+</body>
+</html>
